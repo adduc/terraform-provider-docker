@@ -15,7 +15,7 @@ variable "container_name" {
 }
 
 data "docker_logs" "logs" {
-  name       = var.container_name
+  container  = var.container_name
   timestamps = false
 }
 

@@ -1,2 +1,6 @@
 # Terraform variables
 *.auto.tfvars
+
+# Terraform state files
+*.tfstate
+*.tfstate.backup

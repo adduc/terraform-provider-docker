@@ -23,7 +23,7 @@ type LogsDataSource struct {
 }
 
 type LogsDataSourceModel struct {
-	Name       types.String `tfsdk:"name"`
+	Container  types.String `tfsdk:"container"`
 	Logs       types.List   `tfsdk:"logs"`
 	Timestamps types.Bool   `tfsdk:"timestamps"`
 }
@@ -38,7 +38,7 @@ func (d *LogsDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 			// Required
 
-			"name": schema.StringAttribute{
+			"container": schema.StringAttribute{
 				Required:    true,
 				Description: "The name of the container",
 			},
@@ -120,12 +120,12 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		Timestamps: data.Timestamps.ValueBool(),
 	}
 
-	logs, err := d.DockerClient.ContainerLogs(ctx, data.Name.ValueString(), options)
+	logs, err := d.DockerClient.ContainerLogs(ctx, data.Container.ValueString(), options)
 
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Container Logs",
-			fmt.Sprintf("Error reading logs for container %q: %v", data.Name.ValueString(), err),
+			fmt.Sprintf("Error reading logs for container %q: %v", data.Container.ValueString(), err),
 		)
 		return
 	}
@@ -144,7 +144,7 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	if err := scanner.Err(); err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read Container Logs",
-			fmt.Sprintf("Error reading logs for container %q: %v", data.Name.ValueString(), err),
+			fmt.Sprintf("Error reading logs for container %q: %v", data.Container.ValueString(), err),
 		)
 		return
 	}
