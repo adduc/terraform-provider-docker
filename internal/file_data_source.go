@@ -1,19 +1,18 @@
 package internal
 
 import (
+	"archive/tar"
 	"context"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/docker/docker/client"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
-
-func NewFileDataSource() datasource.DataSource {
-	return &FileDataSource{}
-}
 
 type FileDataSource struct {
 	DockerClient *client.Client
@@ -23,6 +22,11 @@ type FileDataSourceModel struct {
 	Container types.String `tfsdk:"container"`
 	Path      types.String `tfsdk:"path"`
 	Content   types.String `tfsdk:"content"`
+	Stat      types.Object `tfsdk:"stat"`
+}
+
+func NewFileDataSource() datasource.DataSource {
+	return &FileDataSource{}
 }
 
 func (d *FileDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -31,6 +35,11 @@ func (d *FileDataSource) Metadata(ctx context.Context, req datasource.MetadataRe
 
 func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: `
+			Retrieve a single files stats and contents from a docker container.
+
+			Use the docker_files data source to retrieve multiple files.
+		`,
 		Attributes: map[string]schema.Attribute{
 
 			// Required
@@ -51,6 +60,18 @@ func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Computed:    true,
 				Description: "The content of the file",
 				Sensitive:   true,
+			},
+
+			"stat": schema.ObjectAttribute{
+				Computed:    true,
+				Description: "File metadata/statistics (size, mode, mtime, etc.).",
+				AttributeTypes: map[string]attr.Type{
+					"name":        types.StringType,
+					"size":        types.Int64Type,
+					"mode":        types.Int32Type,
+					"mtime":       types.StringType,
+					"link_target": types.StringType,
+				},
 			},
 		},
 	}
@@ -83,13 +104,7 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	// @todo fetch file content
-
-	// $ curl --unix-socket /var/run/docker.sock http://localhost/containers/992906944bee/archive --url-query "path=/etc/ssl/certs/ca-certificates.crt" --output -
-
-	// @todo read file stat info into computed attribute(s)
-	file, _, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), data.Path.ValueString())
-
+	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), data.Path.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read File from Container",
@@ -99,12 +114,29 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 	defer file.Close()
 
-	content, err := io.ReadAll(file)
+	data.Stat = types.ObjectValueMust(
+		map[string]attr.Type{
+			"name":        types.StringType,
+			"size":        types.Int64Type,
+			"mode":        types.Int32Type,
+			"mtime":       types.StringType,
+			"link_target": types.StringType,
+		},
 
+		map[string]attr.Value{
+			"name":        types.StringValue(stat.Name),
+			"size":        types.Int64Value(stat.Size),
+			"mode":        types.Int32Value(int32(stat.Mode)),
+			"mtime":       types.StringValue(stat.Mtime.Format(time.RFC3339)),
+			"link_target": types.StringValue(stat.LinkTarget),
+		},
+	)
+
+	content, err := extractFileFromTar(file)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Read File Content",
-			fmt.Sprintf("Error reading file content from container %q: %v", data.Container.ValueString(), err),
+			"Unable to Extract File from Tar",
+			fmt.Sprintf("Error extracting file from tar stream for %q: %v", data.Path.ValueString(), err),
 		)
 		return
 	}
@@ -113,3 +145,28 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
+
+// extracts the first regular file from a tar stream
+func extractFileFromTar(r io.Reader) ([]byte, error) {
+	tr := tar.NewReader(r)
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if hdr.Typeflag == tar.TypeReg {
+			buf, err := io.ReadAll(tr)
+			if err != nil {
+				return nil, err
+			}
+			return buf, nil
+		}
+	}
+	return nil, io.EOF
+}
+
+// @todo error if multiple files are returned in tar
+// @todo error if no files are returned in tar

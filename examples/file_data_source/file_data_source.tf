@@ -27,3 +27,7 @@ data "docker_file" "file" {
 output "content" {
   value = nonsensitive(data.docker_file.file.content)
 }
+
+output "stat" {
+  value = data.docker_file.file.stat
+}
