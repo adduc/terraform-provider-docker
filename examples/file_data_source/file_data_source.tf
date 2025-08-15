@@ -24,8 +24,8 @@ data "docker_file" "file" {
   path      = var.path
 }
 
-output "content" {
-  value = nonsensitive(data.docker_file.file.content)
+output "file" {
+  value = nonsensitive(data.docker_file.file.file)
 }
 
 output "stat" {

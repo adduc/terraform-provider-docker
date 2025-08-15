@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"context"
 	"fmt"
-	"io"
 	"time"
 
 	"github.com/docker/docker/client"
@@ -21,7 +20,7 @@ type FileDataSource struct {
 type FileDataSourceModel struct {
 	Container types.String `tfsdk:"container"`
 	Path      types.String `tfsdk:"path"`
-	Content   types.String `tfsdk:"content"`
+	File      types.Object `tfsdk:"file"`
 	Stat      types.Object `tfsdk:"stat"`
 }
 
@@ -51,20 +50,26 @@ func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 			"path": schema.StringAttribute{
 				Required:    true,
-				Description: "The path to the file to retrieve from the container",
+				Description: "The filepath to request from the container",
 			},
 
 			// Computed
 
-			"content": schema.StringAttribute{
+			"file": schema.ObjectAttribute{
 				Computed:    true,
-				Description: "The content of the file",
 				Sensitive:   true,
+				Description: "The first file returned",
+				AttributeTypes: map[string]attr.Type{
+					"content":  types.StringType,
+					"mod_time": types.StringType,
+					"mode":     types.Int64Type,
+					"name":     types.StringType,
+				},
 			},
 
 			"stat": schema.ObjectAttribute{
 				Computed:    true,
-				Description: "File metadata/statistics (size, mode, mtime, etc.).",
+				Description: "Stat for file path",
 				AttributeTypes: map[string]attr.Type{
 					"name":        types.StringType,
 					"size":        types.Int64Type,
@@ -132,7 +137,8 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		},
 	)
 
-	content, err := extractFileFromTar(file)
+	tr := tar.NewReader(file)
+	header, content, err := extractFileFromTar(tr)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Extract File from Tar",
@@ -141,31 +147,23 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	data.Content = types.StringValue(string(content))
+	data.File = types.ObjectValueMust(
+		map[string]attr.Type{
+			"content":  types.StringType,
+			"mod_time": types.StringType,
+			"mode":     types.Int64Type,
+			"name":     types.StringType,
+		},
+
+		map[string]attr.Value{
+			"content":  types.StringValue(string(content)),
+			"mod_time": types.StringValue(header.ModTime.Format(time.RFC3339)),
+			"mode":     types.Int64Value(header.Mode),
+			"name":     types.StringValue(header.Name),
+		},
+	)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-// extracts the first regular file from a tar stream
-func extractFileFromTar(r io.Reader) ([]byte, error) {
-	tr := tar.NewReader(r)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if hdr.Typeflag == tar.TypeReg {
-			buf, err := io.ReadAll(tr)
-			if err != nil {
-				return nil, err
-			}
-			return buf, nil
-		}
-	}
-	return nil, io.EOF
 }
 
 // @todo error if multiple files are returned in tar
