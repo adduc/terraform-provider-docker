@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 type FilesDataSource struct {
@@ -35,9 +36,9 @@ func (d *FilesDataSource) Metadata(ctx context.Context, req datasource.MetadataR
 func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: `
-			Retrieve a single file's stats and contents from a docker container.
+			Retrieve files' stats and contents from a docker container.
 
-			Use the docker_files data source to retrieve multiple files.
+			Returns all files in the specified path as a map.
 		`,
 		Attributes: map[string]schema.Attribute{
 
@@ -57,7 +58,7 @@ func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 
 			"files": schema.MapNestedAttribute{
 				Computed:    true,
-				Description: "The first file returned",
+				Description: "All files returned from the path",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
 						"content": schema.StringAttribute{
@@ -88,6 +89,10 @@ func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 						"gid": schema.Int32Attribute{
 							Computed:    true,
 							Description: "The file owner GID",
+						},
+						"type": schema.StringAttribute{
+							Computed:    true,
+							Description: "The file type",
 						},
 					},
 				},
@@ -179,49 +184,54 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	)
 
 	tr := tar.NewReader(file)
-	header, content, err := extractFileFromTar(tr)
+	allFiles, err := extractAllFilesFromTar(tr)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Extract File from Tar",
-			fmt.Sprintf("Error extracting file from tar stream for %q: %v", data.Path.ValueString(), err),
+			"Unable to Extract Files from Tar",
+			fmt.Sprintf("Error extracting files from tar stream for %q: %v", data.Path.ValueString(), err),
 		)
 		return
 	}
 
-	data.Files = types.MapValueMust(
-		types.ObjectType{
-			AttrTypes: map[string]attr.Type{
-				"content":  types.StringType,
-				"gid":      types.Int32Type,
-				"mod_time": types.StringType,
-				"mode":     types.Int64Type,
-				"name":     types.StringType,
-				"size":     types.Int64Type,
-				"uid":      types.Int32Type,
+	attrTypes := map[string]attr.Type{
+		"content":  types.StringType,
+		"gid":      types.Int32Type,
+		"mod_time": types.StringType,
+		"mode":     types.Int64Type,
+		"name":     types.StringType,
+		"size":     types.Int64Type,
+		"uid":      types.Int32Type,
+		"type":     types.StringType,
+	}
+
+	fileAttrs := make(map[string]attr.Value)
+	for fileName, fileInfo := range allFiles {
+
+		var content basetypes.StringValue
+		if fileInfo.Content == nil {
+			content = basetypes.NewStringNull()
+		} else {
+			content = types.StringValue(string(fileInfo.Content))
+		}
+
+		fileAttrs[fileName] = types.ObjectValueMust(
+			attrTypes,
+			map[string]attr.Value{
+				"content":  content,
+				"gid":      types.Int32Value(int32(fileInfo.Header.Gid)),
+				"mod_time": types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),
+				"mode":     types.Int64Value(fileInfo.Header.Mode),
+				"name":     types.StringValue(fileInfo.Header.Name),
+				"size":     types.Int64Value(fileInfo.Header.Size),
+				"uid":      types.Int32Value(int32(fileInfo.Header.Uid)),
+				"type":     types.StringValue(string(fileInfo.Header.Typeflag)),
 			},
-		},
-		map[string]attr.Value{
-			string(header.Name): types.ObjectValueMust(
-				map[string]attr.Type{
-					"content":  types.StringType,
-					"gid":      types.Int32Type,
-					"mod_time": types.StringType,
-					"mode":     types.Int64Type,
-					"name":     types.StringType,
-					"size":     types.Int64Type,
-					"uid":      types.Int32Type,
-				},
-				map[string]attr.Value{
-					"content":  types.StringValue(string(content)),
-					"gid":      types.Int32Value(int32(header.Gid)),
-					"mod_time": types.StringValue(header.ModTime.Format(time.RFC3339)),
-					"mode":     types.Int64Value(header.Mode),
-					"name":     types.StringValue(header.Name),
-					"size":     types.Int64Value(header.Size),
-					"uid":      types.Int32Value(int32(header.Uid)),
-				},
-			),
-		},
+		)
+	}
+
+	data.Files = types.MapValueMust(
+		types.ObjectType{AttrTypes: attrTypes},
+		fileAttrs,
 	)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)

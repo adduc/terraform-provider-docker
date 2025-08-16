@@ -35,3 +35,29 @@ func extractFileFromTar(r *tar.Reader) (*tar.Header, []byte, error) {
 	// Return the header and file contents
 	return hdr, buf, nil
 }
+
+type FileInfo struct {
+	Header  *tar.Header
+	Content []byte
+}
+
+func extractAllFilesFromTar(r *tar.Reader) (map[string]*FileInfo, error) {
+	files := make(map[string]*FileInfo)
+
+	for {
+		hdr, content, err := extractFileFromTar(r)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		files[hdr.Name] = &FileInfo{
+			Header:  hdr,
+			Content: content,
+		}
+	}
+
+	return files, nil
+}
