@@ -13,26 +13,26 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
-type FileDataSource struct {
+type FilesDataSource struct {
 	DockerClient *client.Client
 }
 
-type FileDataSourceModel struct {
+type FilesDataSourceModel struct {
 	Container types.String `tfsdk:"container"`
 	Path      types.String `tfsdk:"path"`
-	File      types.Object `tfsdk:"file"`
+	Files     types.Map    `tfsdk:"files"`
 	Stat      types.Object `tfsdk:"stat"`
 }
 
-func NewFileDataSource() datasource.DataSource {
-	return &FileDataSource{}
+func NewFilesDataSource() datasource.DataSource {
+	return &FilesDataSource{}
 }
 
-func (d *FileDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_file"
+func (d *FilesDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_files"
 }
 
-func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: `
 			Retrieve a single file's stats and contents from a docker container.
@@ -55,38 +55,40 @@ func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 			// Computed
 
-			"file": schema.SingleNestedAttribute{
+			"files": schema.MapNestedAttribute{
 				Computed:    true,
 				Description: "The first file returned",
-				Attributes: map[string]schema.Attribute{
-					"content": schema.StringAttribute{
-						Computed:    true,
-						Sensitive:   true,
-						Description: "The file content",
-					},
-					"mod_time": schema.StringAttribute{
-						Computed:    true,
-						Description: "The file modification time",
-					},
-					"mode": schema.Int64Attribute{
-						Computed:    true,
-						Description: "The file mode",
-					},
-					"name": schema.StringAttribute{
-						Computed:    true,
-						Description: "The file name",
-					},
-					"size": schema.Int64Attribute{
-						Computed:    true,
-						Description: "The file size",
-					},
-					"uid": schema.Int32Attribute{
-						Computed:    true,
-						Description: "The file owner UID",
-					},
-					"gid": schema.Int32Attribute{
-						Computed:    true,
-						Description: "The file owner GID",
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"content": schema.StringAttribute{
+							Computed:    true,
+							Sensitive:   true,
+							Description: "The file content",
+						},
+						"mod_time": schema.StringAttribute{
+							Computed:    true,
+							Description: "The file modification time",
+						},
+						"mode": schema.Int64Attribute{
+							Computed:    true,
+							Description: "The file mode",
+						},
+						"name": schema.StringAttribute{
+							Computed:    true,
+							Description: "The file name",
+						},
+						"size": schema.Int64Attribute{
+							Computed:    true,
+							Description: "The file size",
+						},
+						"uid": schema.Int32Attribute{
+							Computed:    true,
+							Description: "The file owner UID",
+						},
+						"gid": schema.Int32Attribute{
+							Computed:    true,
+							Description: "The file owner GID",
+						},
 					},
 				},
 			},
@@ -121,7 +123,7 @@ func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 	}
 }
 
-func (d *FileDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *FilesDataSource) Configure(ctx context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -139,8 +141,8 @@ func (d *FileDataSource) Configure(ctx context.Context, req datasource.Configure
 	d.DockerClient = config.DockerClient
 }
 
-func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data FileDataSourceModel
+func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var data FilesDataSourceModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 
@@ -186,30 +188,41 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	data.File = types.ObjectValueMust(
-		map[string]attr.Type{
-			"content":  types.StringType,
-			"gid":      types.Int32Type,
-			"mod_time": types.StringType,
-			"mode":     types.Int64Type,
-			"name":     types.StringType,
-			"size":     types.Int64Type,
-			"uid":      types.Int32Type,
+	data.Files = types.MapValueMust(
+		types.ObjectType{
+			AttrTypes: map[string]attr.Type{
+				"content":  types.StringType,
+				"gid":      types.Int32Type,
+				"mod_time": types.StringType,
+				"mode":     types.Int64Type,
+				"name":     types.StringType,
+				"size":     types.Int64Type,
+				"uid":      types.Int32Type,
+			},
 		},
-
 		map[string]attr.Value{
-			"content":  types.StringValue(string(content)),
-			"gid":      types.Int32Value(int32(header.Gid)),
-			"mod_time": types.StringValue(header.ModTime.Format(time.RFC3339)),
-			"mode":     types.Int64Value(header.Mode),
-			"name":     types.StringValue(header.Name),
-			"size":     types.Int64Value(header.Size),
-			"uid":      types.Int32Value(int32(header.Uid)),
+			string(header.Name): types.ObjectValueMust(
+				map[string]attr.Type{
+					"content":  types.StringType,
+					"gid":      types.Int32Type,
+					"mod_time": types.StringType,
+					"mode":     types.Int64Type,
+					"name":     types.StringType,
+					"size":     types.Int64Type,
+					"uid":      types.Int32Type,
+				},
+				map[string]attr.Value{
+					"content":  types.StringValue(string(content)),
+					"gid":      types.Int32Value(int32(header.Gid)),
+					"mod_time": types.StringValue(header.ModTime.Format(time.RFC3339)),
+					"mode":     types.Int64Value(header.Mode),
+					"name":     types.StringValue(header.Name),
+					"size":     types.Int64Value(header.Size),
+					"uid":      types.Int32Value(int32(header.Uid)),
+				},
+			),
 		},
 	)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
-
-// @todo error if multiple files are returned in tar
-// @todo error if no files are returned in tar

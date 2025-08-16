@@ -15,16 +15,16 @@ variable "container_name" {
 }
 
 variable "path" {
-  description = "The path to the file to retrieve from the container"
+  description = "The filepath to retrieve from the container"
   type        = string
 }
 
-data "docker_file" "file" {
+data "docker_files" "files" {
   container = var.container_name
   path      = var.path
 }
 
-output "file" {
-  value     = data.docker_file.file
+output "files" {
+  value     = data.docker_files.files
   sensitive = true
 }
