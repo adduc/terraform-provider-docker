@@ -177,7 +177,7 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	)
 
 	tr := tar.NewReader(file)
-	header, content, err := extractFileFromTar(tr)
+	fileInfo, err := extractFileFromTar(tr)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Extract File from Tar",
@@ -198,13 +198,13 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		},
 
 		map[string]attr.Value{
-			"content":  types.StringValue(string(content)),
-			"gid":      types.Int32Value(int32(header.Gid)),
-			"mod_time": types.StringValue(header.ModTime.Format(time.RFC3339)),
-			"mode":     types.Int64Value(header.Mode),
-			"name":     types.StringValue(header.Name),
-			"size":     types.Int64Value(header.Size),
-			"uid":      types.Int32Value(int32(header.Uid)),
+			"content":  types.StringValue(string(fileInfo.Content)),
+			"gid":      types.Int32Value(int32(fileInfo.Header.Gid)),
+			"mod_time": types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),
+			"mode":     types.Int64Value(fileInfo.Header.Mode),
+			"name":     types.StringValue(fileInfo.Header.Name),
+			"size":     types.Int64Value(fileInfo.Header.Size),
+			"uid":      types.Int32Value(int32(fileInfo.Header.Uid)),
 		},
 	)
 

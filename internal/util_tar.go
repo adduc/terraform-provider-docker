@@ -5,22 +5,22 @@ import (
 	"io"
 )
 
-func extractFileFromTar(r *tar.Reader) (*tar.Header, []byte, error) {
+func extractFileFromTar(r *tar.Reader) (*FileInfo, error) {
 	hdr, err := r.Next()
 
 	// Check if we've reached the end of the tar stream
 	if err == io.EOF {
-		return nil, nil, io.EOF
+		return nil, io.EOF
 	}
 
 	// Check for other errors
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Check if the header is a regular file
 	if hdr.Typeflag != tar.TypeReg {
-		return hdr, nil, nil
+		return &FileInfo{Header: hdr, Content: nil}, nil
 	}
 
 	// Read the file contents
@@ -29,11 +29,11 @@ func extractFileFromTar(r *tar.Reader) (*tar.Header, []byte, error) {
 
 	// Check for errors while reading the file contents
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	// Return the header and file contents
-	return hdr, buf, nil
+	// Return the FileInfo with header and file contents
+	return &FileInfo{Header: hdr, Content: buf}, nil
 }
 
 type FileInfo struct {
@@ -45,7 +45,7 @@ func extractAllFilesFromTar(r *tar.Reader) (map[string]*FileInfo, error) {
 	files := make(map[string]*FileInfo)
 
 	for {
-		hdr, content, err := extractFileFromTar(r)
+		fileInfo, err := extractFileFromTar(r)
 		if err == io.EOF {
 			break
 		}
@@ -53,10 +53,7 @@ func extractAllFilesFromTar(r *tar.Reader) (map[string]*FileInfo, error) {
 			return nil, err
 		}
 
-		files[hdr.Name] = &FileInfo{
-			Header:  hdr,
-			Content: content,
-		}
+		files[fileInfo.Header.Name] = fileInfo
 	}
 
 	return files, nil
