@@ -7,6 +7,7 @@ terraform {
 }
 
 provider "docker" {
+  host = var.host
 }
 
 variable "container_name" {
@@ -17,6 +18,13 @@ variable "container_name" {
 variable "path" {
   description = "The path to the file to retrieve from the container"
   type        = string
+}
+
+variable "host" {
+  description = "The Docker host to connect to"
+  type        = string
+  default     = null
+  nullable    = true
 }
 
 data "docker_file" "file" {
