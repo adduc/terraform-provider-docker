@@ -2,7 +2,9 @@ package internal
 
 import (
 	"context"
+	"time"
 
+	"github.com/docker/cli/cli/connhelper"
 	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
@@ -16,7 +18,8 @@ type Provider struct {
 }
 
 type ProviderModel struct {
-	Host types.String `tfsdk:"host"`
+	Host    types.String `tfsdk:"host"`
+	Timeout types.Int32  `tfsdk:"timeout"`
 }
 
 type ProviderConfig struct {
@@ -35,6 +38,14 @@ func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp 
 				Description: "The Docker daemon address",
 				Optional:    true,
 			},
+			"timeout": schema.Int32Attribute{
+				MarkdownDescription: `
+					The timeout for Docker API requests
+
+					Default: 30 seconds
+				`,
+				Optional: true,
+			},
 		},
 	}
 }
@@ -48,7 +59,36 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		return
 	}
 
-	client, err := client.NewClientWithOpts()
+	timeout := int32(30)
+	if !data.Timeout.IsNull() && !data.Timeout.IsUnknown() {
+		timeout = data.Timeout.ValueInt32()
+	}
+
+	opts := []client.Opt{
+		client.WithTimeout(time.Duration(timeout) * time.Second),
+		client.WithAPIVersionNegotiation(),
+	}
+
+	if data.Host.ValueString() != "" {
+		helper, err := connhelper.GetConnectionHelper(data.Host.ValueString())
+
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Connection Helper Error",
+				"Failed to get connection helper: "+err.Error(),
+			)
+			return
+		}
+
+		opts = append(
+			opts,
+			client.WithHost(helper.Host),
+			client.WithDialContext(helper.Dialer),
+		)
+	}
+
+	client, err := client.NewClientWithOpts(opts...)
+
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Client Creation Failed",
