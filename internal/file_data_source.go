@@ -148,7 +148,26 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), data.Path.ValueString())
+	// Validate container name
+	if err := validateContainerName(data.Container.ValueString()); err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid Container Name",
+			fmt.Sprintf("Container name validation failed: %v", err),
+		)
+		return
+	}
+
+	// Validate and sanitize path
+	sanitizedPath, err := sanitizePath(data.Path.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid File Path",
+			fmt.Sprintf("Path validation failed for %q: %v", data.Path.ValueString(), err),
+		)
+		return
+	}
+
+	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), sanitizedPath)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read File from Container",
@@ -156,7 +175,14 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			resp.Diagnostics.AddWarning(
+				"Resource Cleanup Warning",
+				fmt.Sprintf("Failed to close file stream for %q from container %q: %v", data.Path.ValueString(), data.Container.ValueString(), closeErr),
+			)
+		}
+	}()
 
 	data.Stat = types.ObjectValueMust(
 		map[string]attr.Type{
@@ -177,13 +203,41 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	)
 
 	tr := tar.NewReader(file)
-	fileInfo, err := extractFileFromTar(tr)
+	allFiles, err := extractAllFilesFromTar(tr)
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Unable to Extract File from Tar",
-			fmt.Sprintf("Error extracting file from tar stream for %q: %v", data.Path.ValueString(), err),
+			"Unable to Extract Files from Tar",
+			fmt.Sprintf("Error extracting files from tar stream for %q: %v", data.Path.ValueString(), err),
 		)
 		return
+	}
+
+	if len(allFiles) == 0 {
+		resp.Diagnostics.AddError(
+			"No Files Found in Tar",
+			fmt.Sprintf("No files were found in tar stream for %q", data.Path.ValueString()),
+		)
+		return
+	}
+
+	if len(allFiles) > 1 {
+		var fileNames []string
+		for name := range allFiles {
+			fileNames = append(fileNames, name)
+		}
+		resp.Diagnostics.AddError(
+			"Multiple Files Found in Tar",
+			fmt.Sprintf("Expected exactly one file in tar stream for %q, but found %d files: %v", 
+				data.Path.ValueString(), len(allFiles), fileNames),
+		)
+		return
+	}
+
+	// Get the single file
+	var fileInfo *FileInfo
+	for _, info := range allFiles {
+		fileInfo = info
+		break
 	}
 
 	data.File = types.ObjectValueMust(
@@ -211,5 +265,3 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-// @todo error if multiple files are returned in tar
-// @todo error if no files are returned in tar

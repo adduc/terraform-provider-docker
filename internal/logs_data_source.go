@@ -14,6 +14,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
+// Docker log format constants
+const (
+	// DockerLogHeaderSize is the size of the Docker log entry header
+	DockerLogHeaderSize = 8
+	// DockerLogTimestampSize is the size of the RFC3339 timestamp in Docker logs
+	DockerLogTimestampSize = 22
+	// DockerLogTimestampEnd is the position where the timestamp ends
+	DockerLogTimestampEnd = DockerLogHeaderSize + DockerLogTimestampSize // 30
+	// DockerLogMessageStart is the position where the log message starts (after timestamp + separator)
+	DockerLogMessageStart = DockerLogTimestampEnd + 9 // 39
+)
+
 func NewLogsDataSource() datasource.DataSource {
 	return &LogsDataSource{}
 }
@@ -112,6 +124,15 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		data.Timestamps = types.BoolValue(true)
 	}
 
+	// Validate container name
+	if err := validateContainerName(data.Container.ValueString()); err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid Container Name",
+			fmt.Sprintf("Container name validation failed: %v", err),
+		)
+		return
+	}
+
 	// get container logs
 
 	options := container.LogsOptions{
@@ -129,7 +150,14 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		)
 		return
 	}
-	defer logs.Close()
+	defer func() {
+		if closeErr := logs.Close(); closeErr != nil {
+			resp.Diagnostics.AddWarning(
+				"Resource Cleanup Warning",
+				fmt.Sprintf("Failed to close log stream for container %q: %v", data.Container.ValueString(), closeErr),
+			)
+		}
+	}()
 
 	// parse logs
 
@@ -138,7 +166,15 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	for scanner.Scan() {
 		line := scanner.Text()
-		logLines = append(logLines, processLogLine(line, options))
+		logLine, err := processLogLine(line, options)
+		if err != nil {
+			resp.Diagnostics.AddError(
+				"Unable to Process Log Line",
+				fmt.Sprintf("Error processing log line for container %q: %v", data.Container.ValueString(), err),
+			)
+			return
+		}
+		logLines = append(logLines, logLine)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -166,33 +202,42 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func processLogLine(line string, logOptions container.LogsOptions) attr.Value {
+func processLogLine(line string, logOptions container.LogsOptions) (attr.Value, error) {
 	// first byte in line is the stream type
 	// 0: stdin
 	// 1: stdout
 	// 2: stderr
+	if len(line) == 0 {
+		return nil, fmt.Errorf("empty log line")
+	}
+	
 	streamType := line[0]
-
 	stdout, stderr := false, false
 
 	switch streamType {
 	case '\x00': // stdin
-		panic("stdin log line?")
+		return nil, fmt.Errorf("unexpected stdin log line")
 	case '\x01': // stdout
 		stdout = true
 	case '\x02': // stderr
 		stderr = true
 	default:
-		panic(fmt.Sprintf("unknown log line type: %q", streamType))
+		return nil, fmt.Errorf("unknown log line type: %q", streamType)
 	}
 
 	var timestamp, message basetypes.StringValue
 
 	if logOptions.Timestamps {
-		timestamp = types.StringValue(line[8:30])
-		message = types.StringValue(line[39:])
+		if len(line) < DockerLogMessageStart {
+			return nil, fmt.Errorf("log line too short for timestamp parsing: need at least %d characters, got %d", DockerLogMessageStart, len(line))
+		}
+		timestamp = types.StringValue(line[DockerLogHeaderSize:DockerLogTimestampEnd])
+		message = types.StringValue(line[DockerLogMessageStart:])
 	} else {
-		message = types.StringValue(line[8:])
+		if len(line) < DockerLogHeaderSize {
+			return nil, fmt.Errorf("log line too short: need at least %d characters, got %d", DockerLogHeaderSize, len(line))
+		}
+		message = types.StringValue(line[DockerLogHeaderSize:])
 	}
 
 	return types.ObjectValueMust(
@@ -209,5 +254,5 @@ func processLogLine(line string, logOptions container.LogsOptions) attr.Value {
 			"message":   message,
 			"timestamp": timestamp,
 		},
-	)
+	), nil
 }

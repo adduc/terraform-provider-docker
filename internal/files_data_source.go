@@ -155,7 +155,26 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), data.Path.ValueString())
+	// Validate container name
+	if err := validateContainerName(data.Container.ValueString()); err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid Container Name",
+			fmt.Sprintf("Container name validation failed: %v", err),
+		)
+		return
+	}
+
+	// Validate and sanitize path
+	sanitizedPath, err := sanitizePath(data.Path.ValueString())
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid File Path",
+			fmt.Sprintf("Path validation failed for %q: %v", data.Path.ValueString(), err),
+		)
+		return
+	}
+
+	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), sanitizedPath)
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read File from Container",
@@ -163,7 +182,14 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			resp.Diagnostics.AddWarning(
+				"Resource Cleanup Warning",
+				fmt.Sprintf("Failed to close file stream for %q from container %q: %v", data.Path.ValueString(), data.Container.ValueString(), closeErr),
+			)
+		}
+	}()
 
 	data.Stat = types.ObjectValueMust(
 		map[string]attr.Type{
