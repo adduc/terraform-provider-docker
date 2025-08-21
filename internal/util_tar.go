@@ -1,3 +1,6 @@
+// Package internal implements the core functionality for the terraform-provider-docker.
+// It provides data sources for retrieving files and logs from Docker containers,
+// with security features like path sanitization and input validation.
 package internal
 
 import (
@@ -5,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -43,16 +47,20 @@ func sanitizePath(path string) (string, error) {
 	return cleaned, nil
 }
 
-// validateContainerName validates that a container name is not empty and contains valid characters.
+// validateContainerName validates that a container name follows Docker naming conventions.
+// Docker container names must match [a-zA-Z0-9][a-zA-Z0-9_.-]* and cannot be empty.
 func validateContainerName(name string) error {
 	if name == "" {
 		return fmt.Errorf("container name cannot be empty")
 	}
 	
-	// Basic validation - Docker container names can contain letters, digits, underscores, periods, and dashes
-	// They cannot start with a period or dash
-	if strings.HasPrefix(name, ".") || strings.HasPrefix(name, "-") {
-		return fmt.Errorf("container name cannot start with '.' or '-': %s", name)
+	// Docker container name validation: must start with alphanumeric, then can contain alphanumeric, underscore, period, dash
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`, name)
+	if err != nil {
+		return fmt.Errorf("failed to validate container name: %w", err)
+	}
+	if !matched {
+		return fmt.Errorf("invalid container name format (must start with letter/number, then can contain letters/numbers/underscore/period/dash): %s", name)
 	}
 	
 	return nil
