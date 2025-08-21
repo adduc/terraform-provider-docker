@@ -1,6 +1,6 @@
 module github.com/adduc/terraform-provider-docker
 
-go 1.24.2
+go 1.24
 
 require (
 	github.com/docker/cli v28.3.3+incompatible
