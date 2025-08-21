@@ -3,3 +3,6 @@ build:
 
 install: build
 	go install -v ./...
+
+generate:
+	cd tools; go generate ./...

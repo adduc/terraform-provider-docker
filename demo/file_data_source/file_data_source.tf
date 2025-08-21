@@ -13,6 +13,11 @@ provider "docker" {
 variable "container_name" {
   description = "The name of the container to retrieve logs for"
   type        = string
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9][a-zA-Z0-9_.-]*$", var.container_name))
+    error_message = "Invalid container name (must start with letter/number, then can contain letters/numbers/underscore/period/dash)"
+  }
 }
 
 variable "path" {
