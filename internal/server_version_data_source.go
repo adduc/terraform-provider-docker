@@ -16,7 +16,8 @@ type ServerVersionDataSource struct {
 }
 
 type ServerVersionDataSourceModel struct {
-	Platform types.Object `tfsdk:"platform"`
+	Platform   types.Object `tfsdk:"platform"`
+	Components types.Map    `tfsdk:"components"`
 }
 
 func NewServerVersionDataSource() datasource.DataSource {
@@ -45,6 +46,27 @@ func (d *ServerVersionDataSource) Schema(ctx context.Context, req datasource.Sch
 					"name": schema.StringAttribute{
 						Computed:    true,
 						Description: "The platform name",
+					},
+				},
+			},
+
+			"components": schema.MapNestedAttribute{
+				Computed:    true,
+				Description: "Components information",
+
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"name": schema.StringAttribute{
+							Computed:    true,
+							Description: "The component name",
+						},
+						"version": schema.StringAttribute{
+							Computed:    true,
+							Description: "The component version",
+						},
+
+						// @todo implement details
+						// Details map[string]string
 					},
 				},
 			},
@@ -95,6 +117,17 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 		map[string]attr.Value{
 			"name": types.StringValue(version.Os),
 		},
+	)
+
+	componentTypes := map[string]attr.Type{
+		"name":    types.StringType,
+		"version": types.StringType,
+	}
+	componentAttrs := make(map[string]attr.Value)
+
+	data.Components = types.MapValueMust(
+		types.ObjectType{AttrTypes: componentTypes},
+		componentAttrs,
 	)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
