@@ -43,9 +43,11 @@ func (d *ServerVersionDataSource) Metadata(ctx context.Context, req datasource.M
 func (d *ServerVersionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
 		MarkdownDescription: `
-		Retrieve a single file's stats and contents from a docker container.
+		Retrieves Docker server version information, including platform details,
+		version metadata, and component information.
 
-		Use the docker_files data source to retrieve multiple files.
+		Use this data source to access details about the Docker server your
+		provider is connected to.
 		`,
 		Attributes: map[string]schema.Attribute{
 
@@ -158,9 +160,10 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 
 	if err != nil {
 		resp.Diagnostics.AddError(
-			"Server Version query failed",
+			"Failed to retrieve Docker server version",
 			err.Error(),
 		)
+		return
 	}
 
 	data.Version = types.StringValue(version.Version)
@@ -179,7 +182,7 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 			"name": types.StringType,
 		},
 		map[string]attr.Value{
-			"name": types.StringValue(version.Os),
+			"name": types.StringValue(version.Platform.Name),
 		},
 	)
 
