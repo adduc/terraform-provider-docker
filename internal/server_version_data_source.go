@@ -18,18 +18,6 @@ type ServerVersionDataSource struct {
 type ServerVersionDataSourceModel struct {
 	Platform   types.Object `tfsdk:"platform"`
 	Components types.Map    `tfsdk:"components"`
-
-	// Deprecated fields that are still provided by the Docker API
-	Version       types.String `tfsdk:"version"`
-	APIVersion    types.String `tfsdk:"api_version"`
-	MinAPIVersion types.String `tfsdk:"min_api_version"`
-	GitCommit     types.String `tfsdk:"git_commit"`
-	GoVersion     types.String `tfsdk:"go_version"`
-	Os            types.String `tfsdk:"os"`
-	Arch          types.String `tfsdk:"arch"`
-	KernelVersion types.String `tfsdk:"kernel_version"`
-	Experimental  types.Bool   `tfsdk:"experimental"`
-	BuildTime     types.String `tfsdk:"build_time"`
 }
 
 func NewServerVersionDataSource() datasource.DataSource {
@@ -52,47 +40,6 @@ func (d *ServerVersionDataSource) Schema(ctx context.Context, req datasource.Sch
 		Attributes: map[string]schema.Attribute{
 
 			// Computed
-
-			"version": schema.StringAttribute{
-				Computed:    true,
-				Description: "The Docker version",
-			},
-			"api_version": schema.StringAttribute{
-				Computed:    true,
-				Description: "The Docker API version",
-			},
-			"min_api_version": schema.StringAttribute{
-				Computed:    true,
-				Description: "The minimum Docker API version",
-			},
-			"git_commit": schema.StringAttribute{
-				Computed:    true,
-				Description: "The Git commit SHA",
-			},
-			"go_version": schema.StringAttribute{
-				Computed:    true,
-				Description: "The Go version",
-			},
-			"os": schema.StringAttribute{
-				Computed:    true,
-				Description: "The operating system",
-			},
-			"arch": schema.StringAttribute{
-				Computed:    true,
-				Description: "The architecture",
-			},
-			"kernel_version": schema.StringAttribute{
-				Computed:    true,
-				Description: "The kernel version",
-			},
-			"experimental": schema.BoolAttribute{
-				Computed:    true,
-				Description: "Whether experimental features are enabled",
-			},
-			"build_time": schema.StringAttribute{
-				Computed:    true,
-				Description: "The build time",
-			},
 
 			"platform": schema.SingleNestedAttribute{
 				Computed:    true,
@@ -119,9 +66,11 @@ func (d *ServerVersionDataSource) Schema(ctx context.Context, req datasource.Sch
 							Computed:    true,
 							Description: "The component version",
 						},
-
-						// @todo implement details
-						// Details map[string]string
+						"details": schema.MapAttribute{
+							Computed:    true,
+							Description: "Additional details about the component",
+							ElementType: types.StringType,
+						},
 					},
 				},
 			},
@@ -166,17 +115,6 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	data.Version = types.StringValue(version.Version)
-	data.APIVersion = types.StringValue(version.APIVersion)
-	data.MinAPIVersion = types.StringValue(version.MinAPIVersion)
-	data.GitCommit = types.StringValue(version.GitCommit)
-	data.GoVersion = types.StringValue(version.GoVersion)
-	data.Os = types.StringValue(version.Os)
-	data.Arch = types.StringValue(version.Arch)
-	data.KernelVersion = types.StringValue(version.KernelVersion)
-	data.Experimental = types.BoolValue(version.Experimental)
-	data.BuildTime = types.StringValue(version.BuildTime)
-
 	data.Platform = types.ObjectValueMust(
 		map[string]attr.Type{
 			"name": types.StringType,
@@ -189,15 +127,26 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 	componentTypes := map[string]attr.Type{
 		"name":    types.StringType,
 		"version": types.StringType,
+		"details": types.MapType{ElemType: types.StringType},
 	}
 
 	componentAttrs := make(map[string]attr.Value)
 	for _, component := range version.Components {
+
+		details := map[string]attr.Value{}
+		for key, value := range component.Details {
+			details[key] = types.StringValue(value)
+		}
+
 		componentAttrs[component.Name] = types.ObjectValueMust(
 			componentTypes,
 			map[string]attr.Value{
 				"name":    types.StringValue(component.Name),
 				"version": types.StringValue(component.Version),
+				"details": types.MapValueMust(
+					types.StringType,
+					details,
+				),
 			},
 		)
 	}

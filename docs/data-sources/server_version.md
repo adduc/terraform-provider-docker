@@ -25,24 +25,15 @@ Retrieves Docker server version information, including platform details,
 
 ### Read-Only
 
-- `api_version` (String) The Docker API version
-- `arch` (String) The architecture
-- `build_time` (String) The build time
 - `components` (Attributes Map) Components information (see [below for nested schema](#nestedatt--components))
-- `experimental` (Boolean) Whether experimental features are enabled
-- `git_commit` (String) The Git commit SHA
-- `go_version` (String) The Go version
-- `kernel_version` (String) The kernel version
-- `min_api_version` (String) The minimum Docker API version
-- `os` (String) The operating system
 - `platform` (Attributes) Platform information (see [below for nested schema](#nestedatt--platform))
-- `version` (String) The Docker version
 
 <a id="nestedatt--components"></a>
 ### Nested Schema for `components`
 
 Read-Only:
 
+- `details` (Map of String) Additional details about the component
 - `name` (String) The component name
 - `version` (String) The component version
 
