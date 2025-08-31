@@ -114,6 +114,7 @@ func (p *Provider) DataSources(ctx context.Context) []func() datasource.DataSour
 		NewFileDataSource,
 		NewFilesDataSource,
 		NewLogsDataSource,
+		NewServerVersionDataSource,
 	}
 }
 
