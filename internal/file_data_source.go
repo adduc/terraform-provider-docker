@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/moby/moby/client"
 )
 
 type FileDataSource struct {
@@ -167,7 +167,8 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), sanitizedPath)
+	res, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), client.CopyFromContainerOptions{SourcePath: sanitizedPath})
+	file, stat := res.Content, res.Stat
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read File from Container",
@@ -227,7 +228,7 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 		resp.Diagnostics.AddError(
 			"Multiple Files Found in Tar",
-			fmt.Sprintf("Expected exactly one file in tar stream for %q, but found %d files: %v", 
+			fmt.Sprintf("Expected exactly one file in tar stream for %q, but found %d files: %v",
 				data.Path.ValueString(), len(allFiles), fileNames),
 		)
 		return
@@ -264,4 +265,3 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
-
