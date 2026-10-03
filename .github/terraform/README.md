@@ -20,7 +20,7 @@ State is stored locally and is not committed (see the repository's
 
 ## Adopting existing resources
 
-Resources that already exist on GitHub are adopted via `import` blocks in
-`imports.tf`. When adding a resource that already exists (e.g. a label
+Resources that already exist on GitHub are adopted via `import` blocks at the
+end of `main.tf`. When adding a resource that already exists (e.g. a label
 created through the web UI), add a matching import block so it is adopted
 rather than recreated.
