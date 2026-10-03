@@ -210,7 +210,7 @@ func processLogLine(line string, logOptions container.LogsOptions) (attr.Value, 
 	if len(line) == 0 {
 		return nil, fmt.Errorf("empty log line")
 	}
-	
+
 	streamType := line[0]
 	stdout, stderr := false, false
 

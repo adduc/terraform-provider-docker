@@ -227,7 +227,7 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		}
 		resp.Diagnostics.AddError(
 			"Multiple Files Found in Tar",
-			fmt.Sprintf("Expected exactly one file in tar stream for %q, but found %d files: %v", 
+			fmt.Sprintf("Expected exactly one file in tar stream for %q, but found %d files: %v",
 				data.Path.ValueString(), len(allFiles), fileNames),
 		)
 		return
@@ -264,4 +264,3 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
-

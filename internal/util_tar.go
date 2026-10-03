@@ -35,15 +35,15 @@ func sanitizePath(path string) (string, error) {
 
 	// Clean the path to resolve any . and .. elements
 	cleaned := filepath.Clean(path)
-	
+
 	// Check for path traversal attempts
 	if strings.Contains(cleaned, "..") || strings.HasPrefix(cleaned, "../") {
 		return "", fmt.Errorf("path traversal detected: %s", path)
 	}
-	
+
 	// Ensure the path doesn't start with / to avoid absolute paths
 	cleaned = strings.TrimPrefix(cleaned, "/")
-	
+
 	return cleaned, nil
 }
 
@@ -53,7 +53,7 @@ func validateContainerName(name string) error {
 	if name == "" {
 		return fmt.Errorf("container name cannot be empty")
 	}
-	
+
 	// Docker container name validation: must start with alphanumeric, then can contain alphanumeric, underscore, period, dash
 	matched, err := regexp.MatchString(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`, name)
 	if err != nil {
@@ -62,7 +62,7 @@ func validateContainerName(name string) error {
 	if !matched {
 		return fmt.Errorf("invalid container name format (must start with letter/number, then can contain letters/numbers/underscore/period/dash): %s", name)
 	}
-	
+
 	return nil
 }
 
