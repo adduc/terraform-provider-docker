@@ -5,12 +5,12 @@ import (
 	"time"
 
 	"github.com/docker/cli/cli/connhelper"
-	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/moby/moby/client"
 )
 
 type Provider struct {
@@ -66,7 +66,6 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 
 	opts := []client.Opt{
 		client.WithTimeout(time.Duration(timeout) * time.Second),
-		client.WithAPIVersionNegotiation(),
 	}
 
 	if data.Host.ValueString() != "" {
@@ -87,7 +86,7 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		)
 	}
 
-	client, err := client.NewClientWithOpts(opts...)
+	client, err := client.New(opts...)
 
 	if err != nil {
 		resp.Diagnostics.AddError(

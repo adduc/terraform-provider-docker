@@ -4,11 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/moby/moby/client"
 )
 
 type ServerVersionDataSource struct {
@@ -105,7 +105,7 @@ func (d *ServerVersionDataSource) Read(ctx context.Context, req datasource.ReadR
 		return
 	}
 
-	version, err := d.DockerClient.ServerVersion(ctx)
+	version, err := d.DockerClient.ServerVersion(ctx, client.ServerVersionOptions{})
 
 	if err != nil {
 		resp.Diagnostics.AddError(

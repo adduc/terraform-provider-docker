@@ -5,13 +5,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/moby/moby/client"
 )
 
 // Docker log format constants
@@ -135,7 +134,7 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 
 	// get container logs
 
-	options := container.LogsOptions{
+	options := client.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
 		Timestamps: data.Timestamps.ValueBool(),
@@ -202,7 +201,7 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
-func processLogLine(line string, logOptions container.LogsOptions) (attr.Value, error) {
+func processLogLine(line string, logOptions client.ContainerLogsOptions) (attr.Value, error) {
 	// first byte in line is the stream type
 	// 0: stdin
 	// 1: stdout

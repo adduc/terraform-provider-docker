@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/client"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/moby/moby/client"
 )
 
 type FilesDataSource struct {
@@ -174,7 +174,8 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	file, stat, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), sanitizedPath)
+	res, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), client.CopyFromContainerOptions{SourcePath: sanitizedPath})
+	file, stat := res.Content, res.Stat
 	if err != nil {
 		resp.Diagnostics.AddError(
 			"Unable to Read File from Container",
