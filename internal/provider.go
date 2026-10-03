@@ -2,9 +2,10 @@ package internal
 
 import (
 	"context"
+	"net/url"
 	"time"
 
-	"github.com/docker/cli/cli/connhelper"
+	"github.com/adduc/terraform-provider-docker/internal/sshconn"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
@@ -68,22 +69,18 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		client.WithTimeout(time.Duration(timeout) * time.Second),
 	}
 
-	if data.Host.ValueString() != "" {
-		helper, err := connhelper.GetConnectionHelper(data.Host.ValueString())
+	if host := data.Host.ValueString(); host != "" {
+		extra, err := hostOpts(host)
 
 		if err != nil {
 			resp.Diagnostics.AddError(
-				"Connection Helper Error",
-				"Failed to get connection helper: "+err.Error(),
+				"Invalid Docker Host",
+				"Failed to configure Docker host: "+err.Error(),
 			)
 			return
 		}
 
-		opts = append(
-			opts,
-			client.WithHost(helper.Host),
-			client.WithDialContext(helper.Dialer),
-		)
+		opts = append(opts, extra...)
 	}
 
 	client, err := client.New(opts...)
@@ -102,6 +99,30 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 
 	resp.DataSourceData = config
 	resp.ResourceData = config
+}
+
+// hostOpts returns the client options for connecting to host. ssh:// hosts
+// are dialed through the local ssh binary; anything else (tcp://, unix://,
+// npipe://, ...) is handled by the Docker client directly.
+func hostOpts(host string) ([]client.Opt, error) {
+	u, err := url.Parse(host)
+	if err != nil {
+		return nil, err
+	}
+
+	if u.Scheme != "ssh" {
+		return []client.Opt{client.WithHost(host)}, nil
+	}
+
+	dial, err := sshconn.NewDialer(host)
+	if err != nil {
+		return nil, err
+	}
+
+	return []client.Opt{
+		client.WithHost(sshconn.Host),
+		client.WithDialContext(dial),
+	}, nil
 }
 
 func (p *Provider) Resources(ctx context.Context) []func() resource.Resource {
