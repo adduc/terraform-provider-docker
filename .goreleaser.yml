@@ -58,4 +58,7 @@ release:
   # If you want to manually examine the release before its live, uncomment this line:
   # draft: true
 changelog:
-  disable: true
+  # Use GitHub's auto-generated release notes, which list merged pull requests
+  # and first-time contributors since the previous tag. Categories are
+  # configured in .github/release.yml.
+  use: github-native
