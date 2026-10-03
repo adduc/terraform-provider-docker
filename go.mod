@@ -3,7 +3,6 @@ module github.com/adduc/terraform-provider-docker
 go 1.24
 
 require (
-	github.com/docker/cli v29.8.2+incompatible
 	github.com/hashicorp/terraform-plugin-framework v1.15.1
 	github.com/moby/moby/client v0.6.1
 )
@@ -36,7 +35,6 @@ require (
 	github.com/oklog/run v1.2.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.1 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
