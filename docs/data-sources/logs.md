@@ -27,11 +27,20 @@ data "docker_logs" "example" {
 
 ### Optional
 
-- `timestamps` (Boolean) Whether to include the timestamp of each log line. Defaults to true
+- `bypass` (Attributes) Disable safeguards that stop known-incorrect results (see [below for nested schema](#nestedatt--bypass))
+- `timestamps` (Boolean) Whether to include the timestamp of each log line. Defaults to true. An error for containers with a TTY unless bypass.tty_timestamps is set
 
 ### Read-Only
 
 - `logs` (Attributes List) The logs of the container (see [below for nested schema](#nestedatt--logs))
+
+<a id="nestedatt--bypass"></a>
+### Nested Schema for `bypass`
+
+Optional:
+
+- `tty_timestamps` (Boolean) Allow timestamps for a container with a TTY. Docker splits lines over 16 KiB into parts, and in a TTY container's raw output the timestamps of later parts can't be told apart from the message, so they appear inside it
+
 
 <a id="nestedatt--logs"></a>
 ### Nested Schema for `logs`

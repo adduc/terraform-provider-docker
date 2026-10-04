@@ -89,15 +89,42 @@ func TestAccLogsDataSource_tty(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		Steps: []resource.TestStep{
 			{
+				// Timestamps default to on, which is refused for TTY
+				// containers unless bypassed.
 				Config: fmt.Sprintf(`
 					data "docker_logs" "test" {
 					  container = %q
+					}
+				`, name),
+				ExpectError: regexp.MustCompile(`Timestamps Unsupported for TTY Containers`),
+			},
+			{
+				Config: fmt.Sprintf(`
+					data "docker_logs" "test" {
+					  container  = %q
+					  timestamps = false
 					}
 				`, name),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.#", "2"),
 					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.0.message", "hello"),
 					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.0.stdout", "true"),
+					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.1.message", "world"),
+					resource.TestCheckNoResourceAttr("data.docker_logs.test", "logs.0.timestamp"),
+				),
+			},
+			{
+				Config: fmt.Sprintf(`
+					data "docker_logs" "test" {
+					  container = %q
+					  bypass = {
+					    tty_timestamps = true
+					  }
+					}
+				`, name),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.#", "2"),
+					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.0.message", "hello"),
 					resource.TestCheckResourceAttr("data.docker_logs.test", "logs.1.message", "world"),
 					resource.TestMatchResourceAttr("data.docker_logs.test", "logs.1.timestamp", testAccLogTimestamp),
 				),

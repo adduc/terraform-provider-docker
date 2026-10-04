@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/moby/moby/api/pkg/stdcopy"
 	"github.com/moby/moby/client"
@@ -24,9 +25,14 @@ type LogsDataSource struct {
 }
 
 type LogsDataSourceModel struct {
-	Container  types.String `tfsdk:"container"`
-	Logs       types.List   `tfsdk:"logs"`
-	Timestamps types.Bool   `tfsdk:"timestamps"`
+	Container  types.String     `tfsdk:"container"`
+	Logs       types.List       `tfsdk:"logs"`
+	Timestamps types.Bool       `tfsdk:"timestamps"`
+	Bypass     *LogsBypassModel `tfsdk:"bypass"`
+}
+
+type LogsBypassModel struct {
+	TTYTimestamps types.Bool `tfsdk:"tty_timestamps"`
 }
 
 func (d *LogsDataSource) Metadata(ctx context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
@@ -48,7 +54,18 @@ func (d *LogsDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 
 			"timestamps": schema.BoolAttribute{
 				Optional:    true,
-				Description: "Whether to include the timestamp of each log line. Defaults to true",
+				Description: "Whether to include the timestamp of each log line. Defaults to true. An error for containers with a TTY unless bypass.tty_timestamps is set",
+			},
+
+			"bypass": schema.SingleNestedAttribute{
+				Optional:    true,
+				Description: "Disable safeguards that stop known-incorrect results",
+				Attributes: map[string]schema.Attribute{
+					"tty_timestamps": schema.BoolAttribute{
+						Optional:    true,
+						Description: "Allow timestamps for a container with a TTY. Docker splits lines over 16 KiB into parts, and in a TTY container's raw output the timestamps of later parts can't be told apart from the message, so they appear inside it",
+					},
+				},
 			},
 
 			// Computed
@@ -137,6 +154,16 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 	}
 
 	tty := inspect.Container.Config != nil && inspect.Container.Config.Tty
+
+	if tty && data.Timestamps.ValueBool() && (data.Bypass == nil || !data.Bypass.TTYTimestamps.ValueBool()) {
+		resp.Diagnostics.AddAttributeError(
+			path.Root("timestamps"),
+			"Timestamps Unsupported for TTY Containers",
+			fmt.Sprintf("Container %q has a TTY, so log lines over 16 KiB would contain stray timestamps. "+
+				"Set timestamps = false, or set bypass = { tty_timestamps = true } to read them anyway.", data.Container.ValueString()),
+		)
+		return
+	}
 
 	// get container logs
 
