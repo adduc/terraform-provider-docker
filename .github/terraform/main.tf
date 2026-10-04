@@ -88,6 +88,40 @@ resource "github_branch_default" "this" {
 }
 
 ################################################################################
+# Branch protection
+################################################################################
+
+resource "github_repository_ruleset" "default_branch" {
+  name        = "Protect default branch"
+  repository  = github_repository.this.name
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
+  }
+
+  rules {
+    # Prevent the branch from being deleted or having its history rewritten.
+    deletion         = true
+    non_fast_forward = true
+
+    # Require changes to land through a pull request. No approvals are
+    # required since GitHub does not allow approving your own pull request.
+    pull_request {
+      required_approving_review_count   = 0
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_review_thread_resolution = true
+    }
+  }
+}
+
+################################################################################
 # Labels
 ################################################################################
 
