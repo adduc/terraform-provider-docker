@@ -27,7 +27,7 @@ data "docker_logs" "example" {
 
 ### Optional
 
-- `timestamps` (Boolean) Whether the log has timestamps
+- `timestamps` (Boolean) Whether to include the timestamp of each log line. Defaults to true
 
 ### Read-Only
 
@@ -36,9 +36,9 @@ data "docker_logs" "example" {
 <a id="nestedatt--logs"></a>
 ### Nested Schema for `logs`
 
-Required:
+Read-Only:
 
 - `message` (String) The log message
 - `stderr` (Boolean) Whether the log is from stderr
 - `stdout` (Boolean) Whether the log is from stdout
-- `timestamp` (String) The log timestamp
+- `timestamp` (String) The log timestamp in RFC3339Nano format, or null when timestamps is false
