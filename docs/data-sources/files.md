@@ -4,15 +4,14 @@ page_title: "docker_files Data Source - docker"
 subcategory: ""
 description: |-
   Retrieve files' stats and contents from a docker container.
-  
-  		Returns all files in the specified path as a map.
+  Returns all files in the specified path as a map.
 ---
 
 # docker_files (Data Source)
 
 Retrieve files' stats and contents from a docker container.
 
-			Returns all files in the specified path as a map.
+Returns all files in the specified path as a map.
 
 ## Example Usage
 

@@ -41,6 +41,8 @@ func (d *LogsDataSource) Metadata(ctx context.Context, req datasource.MetadataRe
 
 func (d *LogsDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Retrieve a container's logs, one entry per line, with the stream " +
+			"(stdout or stderr) and optionally the timestamp of each line.",
 		Attributes: map[string]schema.Attribute{
 
 			// Required

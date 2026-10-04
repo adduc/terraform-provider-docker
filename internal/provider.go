@@ -8,10 +8,12 @@ import (
 	"time"
 
 	"github.com/adduc/terraform-provider-docker/internal/sshconn"
+	"github.com/hashicorp/terraform-plugin-framework-validators/int32validator"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/moby/moby/client"
 )
@@ -37,6 +39,10 @@ func (p *Provider) Metadata(ctx context.Context, req provider.MetadataRequest, r
 
 func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		MarkdownDescription: "Read files, logs, and server information from Docker containers.\n\n" +
+			"Connects to the local Docker daemon by default, or to a remote daemon over `tcp://` " +
+			"(optionally with TLS) or `ssh://`. Like the Docker CLI, it reads `DOCKER_HOST`, " +
+			"`DOCKER_CERT_PATH`, `DOCKER_TLS_VERIFY`, and `DOCKER_API_VERSION` from the environment.",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
 				Description: "The Docker daemon address, e.g. unix:///var/run/docker.sock, tcp://host:2376, or ssh://user@host. Defaults to DOCKER_HOST, then the local socket",
@@ -47,12 +53,11 @@ func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp 
 				Optional:    true,
 			},
 			"timeout": schema.Int32Attribute{
-				MarkdownDescription: `
-					The timeout for Docker API requests
-
-					Default: 30 seconds
-				`,
-				Optional: true,
+				Description: "The timeout for Docker API requests, in seconds. Must be at least 1. Defaults to 30",
+				Optional:    true,
+				Validators: []validator.Int32{
+					int32validator.AtLeast(1),
+				},
 			},
 		},
 	}
