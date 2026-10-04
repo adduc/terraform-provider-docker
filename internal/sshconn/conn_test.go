@@ -15,7 +15,7 @@ func TestConnRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	if _, err := c.Write([]byte("hello")); err != nil {
 		t.Fatal(err)
@@ -37,7 +37,7 @@ func TestConnReportsStderrOnFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	_, err = io.ReadAll(c)
 	if err == nil {

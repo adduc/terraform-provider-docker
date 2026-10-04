@@ -18,14 +18,6 @@ const (
 	MaxFileSize = 10 * 1024 * 1024
 )
 
-// formatError creates a standardized error message with context.
-func formatError(operation, resource, details string, err error) string {
-	if err != nil {
-		return fmt.Sprintf("Failed to %s %s: %s (%v)", operation, resource, details, err)
-	}
-	return fmt.Sprintf("Failed to %s %s: %s", operation, resource, details)
-}
-
 // sanitizePath validates and cleans a file path to prevent path traversal attacks.
 // It rejects paths containing ".." components and ensures the path is within bounds.
 func sanitizePath(path string) (string, error) {

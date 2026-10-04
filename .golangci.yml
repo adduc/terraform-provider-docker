@@ -1,0 +1,19 @@
+version: "2"
+
+linters:
+  # errcheck, govet, ineffassign, staticcheck, unused
+  default: standard
+  exclusions:
+    rules:
+      # De Morgan rewrites of character-class checks read worse, not better.
+      - linters: [staticcheck]
+        text: QF1001
+
+formatters:
+  enable:
+    - gofmt
+
+issues:
+  # Report every issue rather than truncating repeats.
+  max-issues-per-linter: 0
+  max-same-issues: 0

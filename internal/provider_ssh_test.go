@@ -25,7 +25,7 @@ func TestHostOptsSSHIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	v, err := c.ServerVersion(context.Background(), client.ServerVersionOptions{})
 	if err != nil {
