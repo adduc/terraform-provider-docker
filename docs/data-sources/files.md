@@ -41,7 +41,7 @@ data "docker_files" "example" {
 
 Read-Only:
 
-- `content` (String, Sensitive) The file content
+- `content_base64` (String, Sensitive) The file content, base64-encoded. Null if the entry is not a regular file
 - `gid` (Number) The file owner GID
 - `mod_time` (String) The file modification time
 - `mode` (Number) The file mode
@@ -57,7 +57,7 @@ Read-Only:
 Read-Only:
 
 - `link_target` (String) The file link target
-- `mode` (Number) The file mode
+- `mode` (Number) The file mode, as Go os.FileMode bits reported by the Docker API
 - `mtime` (String) The file modification time
 - `name` (String) The file name
 - `size` (Number) The file size

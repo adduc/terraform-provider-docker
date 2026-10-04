@@ -5,11 +5,14 @@ package internal
 
 import (
 	"archive/tar"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 // File size limits
@@ -95,6 +98,18 @@ func extractFileFromTar(r *tar.Reader) (*FileInfo, error) {
 
 	// Return the FileInfo with header and file contents
 	return &FileInfo{Header: hdr, Content: buf}, nil
+}
+
+// fileContentBase64 returns the content_base64 attribute for a tar entry.
+// Content is always base64-encoded, since Terraform strings must be valid
+// UTF-8 and file contents may not be. It is null for entries that are not
+// regular files.
+func fileContentBase64(info *FileInfo) types.String {
+	if info.Content == nil {
+		return types.StringNull()
+	}
+
+	return types.StringValue(base64.StdEncoding.EncodeToString(info.Content))
 }
 
 // FileInfo represents metadata and content extracted from a tar archive entry.

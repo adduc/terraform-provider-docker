@@ -10,7 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/moby/moby/client"
 )
 
@@ -61,10 +60,10 @@ func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 				Description: "All files returned from the path",
 				NestedObject: schema.NestedAttributeObject{
 					Attributes: map[string]schema.Attribute{
-						"content": schema.StringAttribute{
+						"content_base64": schema.StringAttribute{
 							Computed:    true,
 							Sensitive:   true,
-							Description: "The file content",
+							Description: "The file content, base64-encoded. Null if the entry is not a regular file",
 						},
 						"mod_time": schema.StringAttribute{
 							Computed:    true,
@@ -110,9 +109,9 @@ func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 						Computed:    true,
 						Description: "The file size",
 					},
-					"mode": schema.Int32Attribute{
+					"mode": schema.Int64Attribute{
 						Computed:    true,
-						Description: "The file mode",
+						Description: "The file mode, as Go os.FileMode bits reported by the Docker API",
 					},
 					"mtime": schema.StringAttribute{
 						Computed:    true,
@@ -196,7 +195,7 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		map[string]attr.Type{
 			"name":        types.StringType,
 			"size":        types.Int64Type,
-			"mode":        types.Int32Type,
+			"mode":        types.Int64Type,
 			"mtime":       types.StringType,
 			"link_target": types.StringType,
 		},
@@ -204,7 +203,7 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		map[string]attr.Value{
 			"name":        types.StringValue(stat.Name),
 			"size":        types.Int64Value(stat.Size),
-			"mode":        types.Int32Value(int32(stat.Mode)),
+			"mode":        types.Int64Value(int64(stat.Mode)),
 			"mtime":       types.StringValue(stat.Mtime.Format(time.RFC3339)),
 			"link_target": types.StringValue(stat.LinkTarget),
 		},
@@ -221,37 +220,32 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 	}
 
 	attrTypes := map[string]attr.Type{
-		"content":  types.StringType,
-		"gid":      types.Int32Type,
-		"mod_time": types.StringType,
-		"mode":     types.Int64Type,
-		"name":     types.StringType,
-		"size":     types.Int64Type,
-		"uid":      types.Int32Type,
-		"type":     types.StringType,
+		"content_base64": types.StringType,
+		"gid":            types.Int32Type,
+		"mod_time":       types.StringType,
+		"mode":           types.Int64Type,
+		"name":           types.StringType,
+		"size":           types.Int64Type,
+		"uid":            types.Int32Type,
+		"type":           types.StringType,
 	}
 
 	fileAttrs := make(map[string]attr.Value)
 	for fileName, fileInfo := range allFiles {
 
-		var content basetypes.StringValue
-		if fileInfo.Content == nil {
-			content = basetypes.NewStringNull()
-		} else {
-			content = types.StringValue(string(fileInfo.Content))
-		}
+		contentBase64 := fileContentBase64(fileInfo)
 
 		fileAttrs[fileName] = types.ObjectValueMust(
 			attrTypes,
 			map[string]attr.Value{
-				"content":  content,
-				"gid":      types.Int32Value(int32(fileInfo.Header.Gid)),
-				"mod_time": types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),
-				"mode":     types.Int64Value(fileInfo.Header.Mode),
-				"name":     types.StringValue(fileInfo.Header.Name),
-				"size":     types.Int64Value(fileInfo.Header.Size),
-				"uid":      types.Int32Value(int32(fileInfo.Header.Uid)),
-				"type":     types.StringValue(string(fileInfo.Header.Typeflag)),
+				"content_base64": contentBase64,
+				"gid":            types.Int32Value(int32(fileInfo.Header.Gid)),
+				"mod_time":       types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),
+				"mode":           types.Int64Value(fileInfo.Header.Mode),
+				"name":           types.StringValue(fileInfo.Header.Name),
+				"size":           types.Int64Value(fileInfo.Header.Size),
+				"uid":            types.Int32Value(int32(fileInfo.Header.Uid)),
+				"type":           types.StringValue(string(fileInfo.Header.Typeflag)),
 			},
 		)
 	}
