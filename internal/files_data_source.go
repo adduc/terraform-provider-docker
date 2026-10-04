@@ -1,10 +1,8 @@
 package internal
 
 import (
-	"archive/tar"
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
@@ -54,72 +52,13 @@ func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaReque
 
 			"files": schema.MapNestedAttribute{
 				Computed:    true,
-				Description: "All files returned from the path",
+				Description: "All files returned from the path, keyed by their path within the archive",
 				NestedObject: schema.NestedAttributeObject{
-					Attributes: map[string]schema.Attribute{
-						"content_base64": schema.StringAttribute{
-							Computed:    true,
-							Sensitive:   true,
-							Description: "The file content, base64-encoded. Null if the entry is not a regular file",
-						},
-						"mod_time": schema.StringAttribute{
-							Computed:    true,
-							Description: "The file modification time",
-						},
-						"mode": schema.Int64Attribute{
-							Computed:    true,
-							Description: "The file mode",
-						},
-						"name": schema.StringAttribute{
-							Computed:    true,
-							Description: "The file name",
-						},
-						"size": schema.Int64Attribute{
-							Computed:    true,
-							Description: "The file size",
-						},
-						"uid": schema.Int32Attribute{
-							Computed:    true,
-							Description: "The file owner UID",
-						},
-						"gid": schema.Int32Attribute{
-							Computed:    true,
-							Description: "The file owner GID",
-						},
-						"type": schema.StringAttribute{
-							Computed:    true,
-							Description: "The file type",
-						},
-					},
+					Attributes: fileSchemaAttributes(),
 				},
 			},
 
-			"stat": schema.SingleNestedAttribute{
-				Computed:    true,
-				Description: "Stat for file path",
-				Attributes: map[string]schema.Attribute{
-					"name": schema.StringAttribute{
-						Computed:    true,
-						Description: "The file name",
-					},
-					"size": schema.Int64Attribute{
-						Computed:    true,
-						Description: "The file size",
-					},
-					"mode": schema.Int64Attribute{
-						Computed:    true,
-						Description: "The file mode, as Go os.FileMode bits reported by the Docker API",
-					},
-					"mtime": schema.StringAttribute{
-						Computed:    true,
-						Description: "The file modification time",
-					},
-					"link_target": schema.StringAttribute{
-						Computed:    true,
-						Description: "The file link target",
-					},
-				},
-			},
+			"stat": statSchemaAttribute(),
 		},
 	}
 }
@@ -151,87 +90,21 @@ func (d *FilesDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		return
 	}
 
-	res, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), client.CopyFromContainerOptions{SourcePath: data.Path.ValueString()})
-	file, stat := res.Content, res.Stat
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Read File from Container",
-			fmt.Sprintf("Error reading file %q from container %q: %v", data.Path.ValueString(), data.Container.ValueString(), err),
-		)
-		return
-	}
-	defer func() {
-		if closeErr := file.Close(); closeErr != nil {
-			resp.Diagnostics.AddWarning(
-				"Resource Cleanup Warning",
-				fmt.Sprintf("Failed to close file stream for %q from container %q: %v", data.Path.ValueString(), data.Container.ValueString(), closeErr),
-			)
-		}
-	}()
+	stat, allFiles, diags := readContainerPath(ctx, d.DockerClient, data.Container.ValueString(), data.Path.ValueString())
+	resp.Diagnostics.Append(diags...)
 
-	data.Stat = types.ObjectValueMust(
-		map[string]attr.Type{
-			"name":        types.StringType,
-			"size":        types.Int64Type,
-			"mode":        types.Int64Type,
-			"mtime":       types.StringType,
-			"link_target": types.StringType,
-		},
-
-		map[string]attr.Value{
-			"name":        types.StringValue(stat.Name),
-			"size":        types.Int64Value(stat.Size),
-			"mode":        types.Int64Value(int64(stat.Mode)),
-			"mtime":       types.StringValue(stat.Mtime.Format(time.RFC3339)),
-			"link_target": types.StringValue(stat.LinkTarget),
-		},
-	)
-
-	tr := tar.NewReader(file)
-	allFiles, err := extractAllFilesFromTar(tr)
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Unable to Extract Files from Tar",
-			fmt.Sprintf("Error extracting files from tar stream for %q: %v", data.Path.ValueString(), err),
-		)
+	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	attrTypes := map[string]attr.Type{
-		"content_base64": types.StringType,
-		"gid":            types.Int32Type,
-		"mod_time":       types.StringType,
-		"mode":           types.Int64Type,
-		"name":           types.StringType,
-		"size":           types.Int64Type,
-		"uid":            types.Int32Type,
-		"type":           types.StringType,
-	}
+	data.Stat = statObject(stat)
 
-	fileAttrs := make(map[string]attr.Value)
+	fileAttrs := make(map[string]attr.Value, len(allFiles))
 	for fileName, fileInfo := range allFiles {
-
-		contentBase64 := fileContentBase64(fileInfo)
-
-		fileAttrs[fileName] = types.ObjectValueMust(
-			attrTypes,
-			map[string]attr.Value{
-				"content_base64": contentBase64,
-				"gid":            types.Int32Value(int32(fileInfo.Header.Gid)),
-				"mod_time":       types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),
-				"mode":           types.Int64Value(fileInfo.Header.Mode),
-				"name":           types.StringValue(fileInfo.Header.Name),
-				"size":           types.Int64Value(fileInfo.Header.Size),
-				"uid":            types.Int32Value(int32(fileInfo.Header.Uid)),
-				"type":           types.StringValue(string(fileInfo.Header.Typeflag)),
-			},
-		)
+		fileAttrs[fileName] = fileObject(fileInfo)
 	}
 
-	data.Files = types.MapValueMust(
-		types.ObjectType{AttrTypes: attrTypes},
-		fileAttrs,
-	)
+	data.Files = types.MapValueMust(types.ObjectType{AttrTypes: fileAttrTypes}, fileAttrs)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }

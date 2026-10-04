@@ -32,7 +32,7 @@ data "docker_files" "example" {
 
 ### Read-Only
 
-- `files` (Attributes Map) All files returned from the path (see [below for nested schema](#nestedatt--files))
+- `files` (Attributes Map) All files returned from the path, keyed by their path within the archive (see [below for nested schema](#nestedatt--files))
 - `stat` (Attributes) Stat for file path (see [below for nested schema](#nestedatt--stat))
 
 <a id="nestedatt--files"></a>
@@ -40,13 +40,13 @@ data "docker_files" "example" {
 
 Read-Only:
 
-- `content_base64` (String, Sensitive) The file content, base64-encoded. Null if the entry is not a regular file
+- `content_base64` (String, Sensitive) The file content, base64-encoded. Null if it is not a regular file
 - `gid` (Number) The file owner GID
 - `mod_time` (String) The file modification time
 - `mode` (Number) The file mode
 - `name` (String) The file name
 - `size` (Number) The file size
-- `type` (String) The file type
+- `type` (String) The file type, as a tar type flag ("0" for a regular file, "5" for a directory, "2" for a symlink)
 - `uid` (Number) The file owner UID
 
 
