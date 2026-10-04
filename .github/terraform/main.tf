@@ -52,9 +52,10 @@ resource "github_repository" "this" {
   has_wiki        = true
   has_discussions = false
 
-  allow_merge_commit     = true
+  # Only allow squash merges.
+  allow_merge_commit     = false
   allow_squash_merge     = true
-  allow_rebase_merge     = true
+  allow_rebase_merge     = false
   allow_auto_merge       = false
   allow_update_branch    = false
   delete_branch_on_merge = false
