@@ -119,17 +119,7 @@ import {
 }
 
 import {
-  for_each = toset([
-    "bug",
-    "documentation",
-    "duplicate",
-    "enhancement",
-    "good first issue",
-    "help wanted",
-    "invalid",
-    "question",
-    "wontfix",
-  ])
+  for_each = local.labels
 
   to = github_issue_label.this[each.key]
   id = "${local.repository}:${each.key}"
