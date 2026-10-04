@@ -23,7 +23,7 @@ func TestHostOpts(t *testing.T) {
 			if err != nil {
 				t.Fatalf("client.New: %v", err)
 			}
-			defer c.Close()
+			defer func() { _ = c.Close() }()
 		})
 	}
 }
