@@ -20,11 +20,13 @@ terraform {
       source = "kreuzwerker/docker"
     }
     adduc-docker = {
-      source = "adduc/docker"
+      source = "registry.terraform.io/adduc/docker"
     }
   }
 }
 ```
+
+The source includes the registry host, `registry.terraform.io`, so that OpenTofu finds this provider too. OpenTofu looks up sources without a host in its own registry, which doesn't list this provider.
 
 Each data source from this provider then sets `provider = adduc-docker`. Without it, Terraform looks for the data source in kreuzwerker/docker, which has no `docker_file`, `docker_files`, or `docker_server_version`. It does have its own `docker_logs`, with different arguments and attributes, so errors about a `docker_logs` block usually mean the `provider` argument is missing.
 
@@ -47,10 +49,11 @@ terraform {
     }
 
     # Reads files, logs, and server information. Both providers are named
-    # "docker", so this one gets a different local name.
+    # "docker", so this one gets a different local name. The registry host
+    # lets OpenTofu find it, since it isn't in the OpenTofu registry.
     adduc-docker = {
-      source  = "adduc/docker"
-      version = "~> 0.0.5"
+      source  = "registry.terraform.io/adduc/docker"
+      version = "~> 0.0.6"
     }
   }
 }
@@ -123,8 +126,8 @@ terraform {
     }
 
     adduc-docker = {
-      source  = "adduc/docker"
-      version = "~> 0.0.5"
+      source  = "registry.terraform.io/adduc/docker"
+      version = "~> 0.0.6"
     }
 
     kubectl = {

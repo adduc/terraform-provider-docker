@@ -7,10 +7,11 @@ terraform {
     }
 
     # Reads files, logs, and server information. Both providers are named
-    # "docker", so this one gets a different local name.
+    # "docker", so this one gets a different local name. The registry host
+    # lets OpenTofu find it, since it isn't in the OpenTofu registry.
     adduc-docker = {
-      source  = "adduc/docker"
-      version = "~> 0.0.5"
+      source  = "registry.terraform.io/adduc/docker"
+      version = "~> 0.0.6"
     }
   }
 }

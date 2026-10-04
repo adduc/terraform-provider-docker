@@ -6,8 +6,8 @@ terraform {
     }
 
     adduc-docker = {
-      source  = "adduc/docker"
-      version = "~> 0.0.5"
+      source  = "registry.terraform.io/adduc/docker"
+      version = "~> 0.0.6"
     }
 
     kubectl = {
