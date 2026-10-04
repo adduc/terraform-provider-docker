@@ -59,11 +59,6 @@ func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaReques
 				Computed:    true,
 				Description: "The first file returned",
 				Attributes: map[string]schema.Attribute{
-					"content": schema.StringAttribute{
-						Computed:    true,
-						Sensitive:   true,
-						Description: "The file content as text. Null if the file is not valid UTF-8 (use content_base64) or is not a regular file",
-					},
 					"content_base64": schema.StringAttribute{
 						Computed:    true,
 						Sensitive:   true,
@@ -246,11 +241,10 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		break
 	}
 
-	content, contentBase64 := fileContentValues(fileInfo)
+	contentBase64 := fileContentBase64(fileInfo)
 
 	data.File = types.ObjectValueMust(
 		map[string]attr.Type{
-			"content":        types.StringType,
 			"content_base64": types.StringType,
 			"gid":            types.Int32Type,
 			"mod_time":       types.StringType,
@@ -261,7 +255,6 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		},
 
 		map[string]attr.Value{
-			"content":        content,
 			"content_base64": contentBase64,
 			"gid":            types.Int32Value(int32(fileInfo.Header.Gid)),
 			"mod_time":       types.StringValue(fileInfo.Header.ModTime.Format(time.RFC3339)),

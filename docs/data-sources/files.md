@@ -41,7 +41,6 @@ data "docker_files" "example" {
 
 Read-Only:
 
-- `content` (String, Sensitive) The file content as text. Null if the file is not valid UTF-8 (use content_base64) or is not a regular file
 - `content_base64` (String, Sensitive) The file content, base64-encoded. Null if the entry is not a regular file
 - `gid` (Number) The file owner GID
 - `mod_time` (String) The file modification time
