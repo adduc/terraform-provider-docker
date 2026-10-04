@@ -12,7 +12,7 @@ func TestAccFileDataSources(t *testing.T) {
 
 	// bin.dat is not valid UTF-8, so it checks content_base64 is binary-safe.
 	name := testAccRunContainer(t, false, "sh", "-c",
-		`mkdir -p /tmp/t/dir /tmp/empty; printf hello > /tmp/t/text.txt; printf '\377\376\000\001' > /tmp/t/bin.dat`)
+		`mkdir -p /tmp/t/dir /tmp/empty; printf hello > /tmp/t/text.txt; printf '\377\376\000\001' > /tmp/t/bin.dat; printf dots > /tmp/backup..old`)
 
 	resource.Test(t, resource.TestCase{
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
@@ -34,6 +34,18 @@ func TestAccFileDataSources(t *testing.T) {
 					  path      = "/tmp/empty"
 					}
 
+					# ".." inside a file name is not path traversal.
+					data "docker_file" "dots" {
+					  container = %[1]q
+					  path      = "/tmp/backup..old"
+					}
+
+					# Relative paths resolve from the container's root.
+					data "docker_file" "relative" {
+					  container = %[1]q
+					  path      = "tmp/t/text.txt"
+					}
+
 					data "docker_files" "all" {
 					  container = %[1]q
 					  path      = "/tmp/t"
@@ -50,6 +62,9 @@ func TestAccFileDataSources(t *testing.T) {
 					// os.ModeDir (bit 31) | 0755: overflows an int32.
 					resource.TestCheckResourceAttr("data.docker_file.dir", "stat.mode", "2147484141"),
 					resource.TestCheckNoResourceAttr("data.docker_file.dir", "file.content_base64"),
+
+					resource.TestCheckResourceAttr("data.docker_file.dots", "file.content_base64", "ZG90cw=="),
+					resource.TestCheckResourceAttr("data.docker_file.relative", "file.content_base64", "aGVsbG8="),
 
 					resource.TestCheckResourceAttr("data.docker_files.all", "files.%", "4"),
 					resource.TestCheckResourceAttr("data.docker_files.all", "files.t/text.txt.content_base64", "aGVsbG8="),
