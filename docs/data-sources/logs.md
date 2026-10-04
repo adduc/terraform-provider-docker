@@ -3,12 +3,12 @@
 page_title: "docker_logs Data Source - docker"
 subcategory: ""
 description: |-
-  
+  Retrieve a container's logs, one entry per line, with the stream (stdout or stderr) and optionally the timestamp of each line.
 ---
 
 # docker_logs (Data Source)
 
-
+Retrieve a container's logs, one entry per line, with the stream (stdout or stderr) and optionally the timestamp of each line.
 
 ## Example Usage
 

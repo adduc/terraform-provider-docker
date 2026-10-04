@@ -34,11 +34,8 @@ func (d *FilesDataSource) Metadata(ctx context.Context, req datasource.MetadataR
 
 func (d *FilesDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: `
-			Retrieve files' stats and contents from a docker container.
-
-			Returns all files in the specified path as a map.
-		`,
+		MarkdownDescription: "Retrieve files' stats and contents from a docker container.\n\n" +
+			"Returns all files in the specified path as a map.",
 		Attributes: map[string]schema.Attribute{
 
 			// Required

@@ -30,13 +30,9 @@ func (d *ServerVersionDataSource) Metadata(ctx context.Context, req datasource.M
 
 func (d *ServerVersionDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: `
-		Retrieves Docker server version information, including platform details,
-		version metadata, and component information.
-
-		Use this data source to access details about the Docker server your
-		provider is connected to.
-		`,
+		MarkdownDescription: "Retrieves Docker server version information, including platform details, " +
+			"version metadata, and component information.\n\n" +
+			"Use this data source to access details about the Docker server your provider is connected to.",
 		Attributes: map[string]schema.Attribute{
 
 			// Computed

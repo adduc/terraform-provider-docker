@@ -34,11 +34,8 @@ func (d *FileDataSource) Metadata(ctx context.Context, req datasource.MetadataRe
 
 func (d *FileDataSource) Schema(ctx context.Context, req datasource.SchemaRequest, resp *datasource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: `
-			Retrieve a single file's stats and contents from a docker container.
-
-			Use the docker_files data source to retrieve multiple files.
-		`,
+		MarkdownDescription: "Retrieve a single file's stats and contents from a docker container.\n\n" +
+			"Use the `docker_files` data source to retrieve multiple files.",
 		Attributes: map[string]schema.Attribute{
 
 			// Required

@@ -3,20 +3,15 @@
 page_title: "docker_server_version Data Source - docker"
 subcategory: ""
 description: |-
-  Retrieves Docker server version information, including platform details,
-  	version metadata, and component information.
-  
-  	Use this data source to access details about the Docker server your
-  	provider is connected to.
+  Retrieves Docker server version information, including platform details, version metadata, and component information.
+  Use this data source to access details about the Docker server your provider is connected to.
 ---
 
 # docker_server_version (Data Source)
 
-Retrieves Docker server version information, including platform details,
-		version metadata, and component information.
+Retrieves Docker server version information, including platform details, version metadata, and component information.
 
-		Use this data source to access details about the Docker server your
-		provider is connected to.
+Use this data source to access details about the Docker server your provider is connected to.
 
 
 

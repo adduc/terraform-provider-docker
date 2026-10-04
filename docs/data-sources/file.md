@@ -4,15 +4,14 @@ page_title: "docker_file Data Source - docker"
 subcategory: ""
 description: |-
   Retrieve a single file's stats and contents from a docker container.
-  
-  		Use the docker_files data source to retrieve multiple files.
+  Use the docker_files data source to retrieve multiple files.
 ---
 
 # docker_file (Data Source)
 
 Retrieve a single file's stats and contents from a docker container.
 
-			Use the docker_files data source to retrieve multiple files.
+Use the `docker_files` data source to retrieve multiple files.
 
 ## Example Usage
 
