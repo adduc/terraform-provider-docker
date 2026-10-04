@@ -3,6 +3,8 @@ package internal
 import (
 	"context"
 	"net/url"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/adduc/terraform-provider-docker/internal/sshconn"
@@ -19,8 +21,9 @@ type Provider struct {
 }
 
 type ProviderModel struct {
-	Host    types.String `tfsdk:"host"`
-	Timeout types.Int32  `tfsdk:"timeout"`
+	Host     types.String `tfsdk:"host"`
+	CertPath types.String `tfsdk:"cert_path"`
+	Timeout  types.Int32  `tfsdk:"timeout"`
 }
 
 type ProviderConfig struct {
@@ -36,7 +39,11 @@ func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp 
 	resp.Schema = schema.Schema{
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
-				Description: "The Docker daemon address",
+				Description: "The Docker daemon address, e.g. unix:///var/run/docker.sock, tcp://host:2376, or ssh://user@host. Defaults to DOCKER_HOST, then the local socket",
+				Optional:    true,
+			},
+			"cert_path": schema.StringAttribute{
+				Description: "Directory containing ca.pem, cert.pem, and key.pem for a TLS connection to the daemon. The server certificate is verified. Defaults to DOCKER_CERT_PATH (with DOCKER_TLS_VERIFY)",
 				Optional:    true,
 			},
 			"timeout": schema.Int32Attribute{
@@ -60,27 +67,14 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 		return
 	}
 
-	timeout := int32(30)
-	if !data.Timeout.IsNull() && !data.Timeout.IsUnknown() {
-		timeout = data.Timeout.ValueInt32()
-	}
+	opts, err := clientOpts(data)
 
-	opts := []client.Opt{
-		client.WithTimeout(time.Duration(timeout) * time.Second),
-	}
-
-	if host := data.Host.ValueString(); host != "" {
-		extra, err := hostOpts(host)
-
-		if err != nil {
-			resp.Diagnostics.AddError(
-				"Invalid Docker Host",
-				"Failed to configure Docker host: "+err.Error(),
-			)
-			return
-		}
-
-		opts = append(opts, extra...)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Invalid Docker Host",
+			"Failed to configure Docker host: "+err.Error(),
+		)
+		return
 	}
 
 	client, err := client.New(opts...)
@@ -99,6 +93,49 @@ func (p *Provider) Configure(ctx context.Context, req provider.ConfigureRequest,
 
 	resp.DataSourceData = config
 	resp.ResourceData = config
+}
+
+// clientOpts returns the Docker client options for the provider
+// configuration, falling back to the same environment variables as the
+// Docker CLI: DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY, and
+// DOCKER_API_VERSION.
+func clientOpts(data ProviderModel) ([]client.Opt, error) {
+	timeout := int32(30)
+	if !data.Timeout.IsNull() && !data.Timeout.IsUnknown() {
+		timeout = data.Timeout.ValueInt32()
+	}
+
+	// TLS is configured before the host, as client.FromEnv does.
+	opts := []client.Opt{
+		client.WithTLSClientConfigFromEnv(),
+		client.WithAPIVersionFromEnv(),
+		client.WithTimeout(time.Duration(timeout) * time.Second),
+	}
+
+	if certPath := data.CertPath.ValueString(); certPath != "" {
+		opts = append(opts, client.WithTLSClientConfig(
+			filepath.Join(certPath, "ca.pem"),
+			filepath.Join(certPath, "cert.pem"),
+			filepath.Join(certPath, "key.pem"),
+		))
+	}
+
+	// DOCKER_HOST is resolved here rather than with client.WithHostFromEnv
+	// so that ssh:// hosts from the environment use the ssh dialer too.
+	host := data.Host.ValueString()
+	if host == "" {
+		host = os.Getenv(client.EnvOverrideHost)
+	}
+
+	if host != "" {
+		extra, err := hostOpts(host)
+		if err != nil {
+			return nil, err
+		}
+		opts = append(opts, extra...)
+	}
+
+	return opts, nil
 }
 
 // hostOpts returns the client options for connecting to host. ssh:// hosts

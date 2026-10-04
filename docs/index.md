@@ -21,7 +21,8 @@ provider "docker" {
 
 ### Optional
 
-- `host` (String) The Docker daemon address
+- `cert_path` (String) Directory containing ca.pem, cert.pem, and key.pem for a TLS connection to the daemon. The server certificate is verified. Defaults to DOCKER_CERT_PATH (with DOCKER_TLS_VERIFY)
+- `host` (String) The Docker daemon address, e.g. unix:///var/run/docker.sock, tcp://host:2376, or ssh://user@host. Defaults to DOCKER_HOST, then the local socket
 - `timeout` (Number) The timeout for Docker API requests
 
 					Default: 30 seconds
