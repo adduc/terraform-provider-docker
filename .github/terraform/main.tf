@@ -58,7 +58,10 @@ resource "github_repository" "this" {
   allow_rebase_merge     = false
   allow_auto_merge       = false
   allow_update_branch    = false
-  delete_branch_on_merge = false
+
+  # Delete head branches on merge, so GitHub retargets stacked PRs onto the
+  # merged PR's base instead of closing them.
+  delete_branch_on_merge = true
 
   merge_commit_title          = "MERGE_MESSAGE"
   merge_commit_message        = "PR_TITLE"
