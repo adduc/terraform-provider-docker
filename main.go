@@ -25,10 +25,9 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		// TODO: Update this string with the published name of your provider.
-		// Also update the tfplugindocs generate command to either remove the
-		// -provider-name flag or set its value to the updated provider name.
-		Address: "registry.terraform.io/adduc/terraform-provider-docker",
+		// The registry drops the "terraform-provider-" prefix from the
+		// repository name, so this is published as adduc/docker.
+		Address: "registry.terraform.io/adduc/docker",
 		Debug:   debug,
 	}
 
