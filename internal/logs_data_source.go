@@ -130,15 +130,6 @@ func (d *LogsDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		data.Timestamps = types.BoolValue(true)
 	}
 
-	// Validate container name
-	if err := validateContainerName(data.Container.ValueString()); err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid Container Name",
-			fmt.Sprintf("Container name validation failed: %v", err),
-		)
-		return
-	}
-
 	// TTY containers write raw output, while others multiplex stdout and
 	// stderr into framed messages, so the stream format depends on the
 	// container.

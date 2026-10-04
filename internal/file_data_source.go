@@ -148,26 +148,7 @@ func (d *FileDataSource) Read(ctx context.Context, req datasource.ReadRequest, r
 		return
 	}
 
-	// Validate container name
-	if err := validateContainerName(data.Container.ValueString()); err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid Container Name",
-			fmt.Sprintf("Container name validation failed: %v", err),
-		)
-		return
-	}
-
-	// Validate and sanitize path
-	sanitizedPath, err := sanitizePath(data.Path.ValueString())
-	if err != nil {
-		resp.Diagnostics.AddError(
-			"Invalid File Path",
-			fmt.Sprintf("Path validation failed for %q: %v", data.Path.ValueString(), err),
-		)
-		return
-	}
-
-	res, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), client.CopyFromContainerOptions{SourcePath: sanitizedPath})
+	res, err := d.DockerClient.CopyFromContainer(ctx, data.Container.ValueString(), client.CopyFromContainerOptions{SourcePath: data.Path.ValueString()})
 	file, stat := res.Content, res.Stat
 	if err != nil {
 		resp.Diagnostics.AddError(

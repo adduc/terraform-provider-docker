@@ -1,6 +1,5 @@
 // Package internal implements the core functionality for the terraform-provider-docker.
-// It provides data sources for retrieving files and logs from Docker containers,
-// with security features like path sanitization and input validation.
+// It provides data sources for retrieving files and logs from Docker containers.
 package internal
 
 import (
@@ -8,9 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"path/filepath"
-	"regexp"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
@@ -20,46 +16,6 @@ const (
 	// MaxFileSize is the maximum size of a single file that can be extracted (10MB)
 	MaxFileSize = 10 * 1024 * 1024
 )
-
-// sanitizePath validates and cleans a file path to prevent path traversal attacks.
-// It rejects paths containing ".." components and ensures the path is within bounds.
-func sanitizePath(path string) (string, error) {
-	if path == "" {
-		return "", fmt.Errorf("path cannot be empty")
-	}
-
-	// Clean the path to resolve any . and .. elements
-	cleaned := filepath.Clean(path)
-
-	// Check for path traversal attempts
-	if strings.Contains(cleaned, "..") || strings.HasPrefix(cleaned, "../") {
-		return "", fmt.Errorf("path traversal detected: %s", path)
-	}
-
-	// Ensure the path doesn't start with / to avoid absolute paths
-	cleaned = strings.TrimPrefix(cleaned, "/")
-
-	return cleaned, nil
-}
-
-// validateContainerName validates that a container name follows Docker naming conventions.
-// Docker container names must match [a-zA-Z0-9][a-zA-Z0-9_.-]* and cannot be empty.
-func validateContainerName(name string) error {
-	if name == "" {
-		return fmt.Errorf("container name cannot be empty")
-	}
-
-	// Docker container name validation: must start with alphanumeric, then can contain alphanumeric, underscore, period, dash
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9][a-zA-Z0-9_.-]*$`, name)
-	if err != nil {
-		return fmt.Errorf("failed to validate container name: %w", err)
-	}
-	if !matched {
-		return fmt.Errorf("invalid container name format (must start with letter/number, then can contain letters/numbers/underscore/period/dash): %s", name)
-	}
-
-	return nil
-}
 
 // extractFileFromTar extracts a single file entry from a tar reader.
 // Returns FileInfo containing the header and content, or an error if extraction fails.
