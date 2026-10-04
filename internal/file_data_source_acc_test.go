@@ -55,6 +55,8 @@ func TestAccFileDataSources(t *testing.T) {
 					resource.TestCheckResourceAttr("data.docker_file.text", "file.content_base64", "aGVsbG8="),
 					resource.TestCheckResourceAttr("data.docker_file.text", "file.mode", "420"),
 					resource.TestCheckResourceAttr("data.docker_file.text", "stat.mode", "420"),
+					resource.TestCheckResourceAttr("data.docker_file.text", "file.type", "0"),
+					resource.TestCheckResourceAttr("data.docker_file.dir", "file.type", "5"),
 
 					resource.TestCheckResourceAttr("data.docker_file.binary", "file.content_base64", "//4AAQ=="),
 					resource.TestCheckResourceAttr("data.docker_file.binary", "file.size", "4"),
