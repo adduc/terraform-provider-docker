@@ -42,7 +42,9 @@ func (p *Provider) Schema(ctx context.Context, req provider.SchemaRequest, resp 
 		MarkdownDescription: "Read files, logs, and server information from Docker containers.\n\n" +
 			"Connects to the local Docker daemon by default, or to a remote daemon over `tcp://` " +
 			"(optionally with TLS) or `ssh://`. Like the Docker CLI, it reads `DOCKER_HOST`, " +
-			"`DOCKER_CERT_PATH`, `DOCKER_TLS_VERIFY`, and `DOCKER_API_VERSION` from the environment.",
+			"`DOCKER_CERT_PATH`, `DOCKER_TLS_VERIFY`, and `DOCKER_API_VERSION` from the environment.\n\n" +
+			"To read from containers managed by the kreuzwerker/docker provider, see the " +
+			"\"Using with kreuzwerker/docker\" guide.",
 		Attributes: map[string]schema.Attribute{
 			"host": schema.StringAttribute{
 				Description: "The Docker daemon address, e.g. unix:///var/run/docker.sock, tcp://host:2376, or ssh://user@host. Defaults to DOCKER_HOST, then the local socket",

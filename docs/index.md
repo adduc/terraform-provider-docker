@@ -4,6 +4,7 @@ page_title: "docker Provider"
 description: |-
   Read files, logs, and server information from Docker containers.
   Connects to the local Docker daemon by default, or to a remote daemon over tcp:// (optionally with TLS) or ssh://. Like the Docker CLI, it reads DOCKER_HOST, DOCKER_CERT_PATH, DOCKER_TLS_VERIFY, and DOCKER_API_VERSION from the environment.
+  To read from containers managed by the kreuzwerker/docker provider, see the "Using with kreuzwerker/docker" guide.
 ---
 
 # docker Provider
@@ -11,6 +12,8 @@ description: |-
 Read files, logs, and server information from Docker containers.
 
 Connects to the local Docker daemon by default, or to a remote daemon over `tcp://` (optionally with TLS) or `ssh://`. Like the Docker CLI, it reads `DOCKER_HOST`, `DOCKER_CERT_PATH`, `DOCKER_TLS_VERIFY`, and `DOCKER_API_VERSION` from the environment.
+
+To read from containers managed by the kreuzwerker/docker provider, see the "Using with kreuzwerker/docker" guide.
 
 ## Example Usage
 
